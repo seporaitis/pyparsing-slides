@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Parsing things in Python</title>
+<meta name="author" content="(Julius Seporaitis)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="./reveal.js/css/reveal.css"/>
+
+<link rel="stylesheet" href="./reveal.js/css/theme/serif.css" id="theme"/>
+
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = './reveal.js/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+<meta name="description" content="Title">
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide"><h1 class="title">Parsing things in Python</h1><h2 class="author">Julius Seporaitis</h2><h2 class="date">2017-05-19 Fri</h2><p class="date">Created: 2017-05-17 Wed 20:30</p>
+</section>
+
+<section>
+<section id="slide-orge6a0dab">
+<h2 id="orge6a0dab">Who recognizes this?</h2>
+<pre class="example">
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nx5d 6. Nxf7 Kxf7
+</pre>
+
+<p class="fragment (roll-in roll-in)">
+Portable Game Notation plain text, computer-processible format for recording chess games.
+</p>
+
+<p class="fragment (roll-in roll-in)">
+We're going to write a parser for it&#x2026;
+</p>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org33ceb22">
+<h2 id="org33ceb22">With `pyparsing`</h2>
+<ul class="fragment roll-in">
+<li><a href="http://pyparsing.wikispaces.com/">http://pyparsing.wikispaces.com/</a></li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre  class="fragment roll-in">pip install pyparsing
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre  class="fragment roll-in">from pyparsing import *  # noqa :-)
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-orgf1850e7">
+<h2 id="orgf1850e7">What's in a move?</h2>
+<pre class="example">
+1. e4 e5
+</pre>
+
+<ul>
+<li class="fragment roll-in">Move number (`1.`)</li>
+<li class="fragment roll-in">Two half-moves (`e4 e4`)</li>
+<li class="fragment roll-in">Pawn or piece half-move (`d5`, `Ng5`)</li>
+<li class="fragment roll-in">Pawn or piece captures (`exd5`).</li>
+<li class="fragment roll-in">There's more, but we'll skip them.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org188d08d">
+<h2 id="org188d08d">Move number</h2>
+<div class="org-src-container">
+
+<pre  class="fragment roll-in">move_number = Word(nums) + Literal(".")
+</pre>
+</div>
+
+<ul>
+<li class="fragment roll-in">`Word` - matches words made of allowed character sets.</li>
+<li class="fragment roll-in">`Literal` - exactly matches a specified string.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org47c7bfd">
+<h2 id="org47c7bfd">Coordinates</h2>
+<div class="org-src-container">
+
+<pre  class="fragment roll-in">file_coord = oneOf("a b c d e f g h")
+rank_coord = oneOf("1 2 3 4 5 6 7 8")
+</pre>
+</div>
+
+<ul>
+<li class="fragment roll-in">`oneOf` - helper to quickly define a set of alternative `Literal`s</li>
+<li class="fragment roll-in">returns first fitting match.</li>
+
+</ul>
+
+
+</section>
+<section id="slide-org1ef986a">
+<h3 id="org1ef986a">Pawn half-moves</h3>
+<p>
+Pawn half-move is just a file and a rank.
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python">pawn_move = file_coord + rank_coord
+</pre>
+</div>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org19cbb37">
+<h2 id="org19cbb37">Pieces</h2>
+<p>
+Any idea how?
+</p>
+
+<div class="org-src-container">
+
+<pre  class="fragment roll-in">piece = oneOf("K Q N B R")
+</pre>
+</div>
+
+<aside class="notes">
+<p>
+Introduce the notation and if time permits let them think about it for
+couple of seconds.
+</p>
+
+</aside>
+
+
+</section>
+<section id="slide-orgb315185">
+<h3 id="orgb315185">Piece half-moves</h3>
+<p>
+A piece half-move has the piece prefix and coordinates.
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python">piece_move = piece + file_coord + rank_coord
+</pre>
+</div>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org40316e9">
+<h2 id="org40316e9">Capturing</h2>
+<p>
+Capture involves having literal `x` in between coordinates.
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python">capture = Literal("x")
+</pre>
+</div>
+
+
+</section>
+<section id="slide-org59d63d2">
+<h3 id="org59d63d2">Pawn captures</h3>
+<p>
+Start from a file (letter), capture and end with coordinates.
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python">pawn_capture = file_coord + capture + file_coord + rank_coord
+</pre>
+</div>
+
+
+</section>
+<section id="slide-orgcf1ef6e">
+<h3 id="orgcf1ef6e">Piece captures</h3>
+<p>
+Same as pawn, but have a piece prefix instead of file.
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python">piece_capture = piece + capture + file_coord + rank_coord
+</pre>
+</div>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org415bfea">
+<h2 id="org415bfea">Half move</h2>
+<p>
+A half move is either a:
+</p>
+<ul>
+<li class="fragment roll-in">pawn move, or</li>
+<li class="fragment roll-in">piece move, or</li>
+<li class="fragment roll-in">pawn capture, or</li>
+<li class="fragment roll-in">piece capture.</li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre  class="fragment roll-in">half_move = Combine(pawn_move | pawn_capture | piece_move | piece_capture)
+</pre>
+</div>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org1c0b438">
+<h2 id="org1c0b438">Move</h2>
+<p>
+A move is a:
+</p>
+<ul>
+<li class="fragment roll-in">move number (don't forget!)</li>
+<li class="fragment roll-in">half-move</li>
+<li class="fragment roll-in">half-move</li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre  class="fragment roll-in">move = Group(Suppress(move_number) + half_move + half_move)
+</pre>
+</div>
+
+<aside class="notes">
+<p>
+`Group` - converter to return matched tokens as a list.
+</p>
+
+</aside>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org1422fa3">
+<h2 id="org1422fa3">Putting it all together</h2>
+<p>
+We started with a PGN, so we finish with:
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-python">pgnGrammar = ZeroOrMore(move)
+
+pgn = pgnGrammar.parseString("""
+1. e4 e5
+2. Nf3 Nc6
+3. Bc4 Nf6
+4. Ng5 d5
+5. exd5 Nxd5
+6. Nxf7 Kxf7""")
+
+[list(m) for m in pgn]
+</pre>
+</div>
+
+<pre class="example">
+[['e4', 'e5'],
+ ['Nf3', 'Nc6'],
+ ['Bc4', 'Nf6'],
+ ['Ng5', 'd5'],
+ ['exd5', 'Nxd5'],
+ ['Nxf7', 'Kxf7']]
+</pre>
+
+
+</section>
+</section>
+<section>
+<section id="slide-orgda744d4">
+<h2 id="orgda744d4">What is it useful for?</h2>
+<ul>
+<li>Writing parsers for semi-structured data</li>
+<li>Writing quick and dirty DSLs (think 'Cucumber')</li>
+
+</ul>
+
+
+</section>
+</section>
+<section>
+<section id="slide-org068dc0a">
+<h2 id="org068dc0a">Slightly more complicated example</h2>
+<ul>
+<li>MySQL syntax parser*</li>
+<li><a href="http://bit.ly/mysqlparse">http://bit.ly/mysqlparse</a></li>
+<li>Star, share, contribute.</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org9486e47">
+<h2 id="org9486e47">Thank you</h2>
+</section>
+</section>
+</div>
+</div>
+<script src="./reveal.js/lib/js/head.min.js"></script>
+<script src="./reveal.js/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: false,
+slideNumber: 'c',
+rollingLinks: true,
+keyboard: true,
+overview: true,
+width: 1200,
+height: 800,
+margin: 0.10,
+minScale: 0.50,
+maxScale: 2.50,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'linear', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: './reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: './reveal.js/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: './reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: './reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: './reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+});
+</script>
+</body>
+</html>

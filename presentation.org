@@ -1,0 +1,232 @@
+#+Title: Parsing things in Python
+#+Author: Julius Seporaitis
+#+Email: julius@seporaitis.net
+#+Date: 2017-05-19 Fri
+
+#+OPTIONS: toc:nil num:nil
+#+OPTIONS: reveal_width:1200
+#+OPTIONS: reveal_height:800
+#+REVEAL_MARGIN: 0.1
+#+REVEAL_MIN_SCALE: 0.5
+#+REVEAL_MAX_SCALE: 2.5
+#+OPTIONS: reveal_center:nil
+#+OPTIONS: reveal_rolling_links:t reveal_keyboard:t reveal_overview:t reveal_highlight:t
+#+REVEAL_TRANS: linear
+#+REVEAL_THEME: serif
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Title">
+
+* Who recognizes this?
+
+#+BEGIN_EXAMPLE
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nx5d 6. Nxf7 Kxf7
+#+END_EXAMPLE
+
+#+ATTR_REVEAL: :frag (roll-in roll-in)
+Portable Game Notation plain text, computer-processible format for recording chess games.
+
+#+ATTR_REVEAL: :frag (roll-in roll-in)
+We're going to write a parser for it...
+
+
+* With `pyparsing`
+
+#+ATTR_REVEAL: :frag roll-in
+- http://pyparsing.wikispaces.com/
+
+#+ATTR_REVEAL: :frag roll-in
+#+BEGIN_SRC shell
+pip install pyparsing
+#+END_SRC
+
+#+ATTR_REVEAL: :frag roll-in
+#+BEGIN_SRC python :session :exports code
+from pyparsing import *  # noqa :-)
+#+END_SRC
+
+#+RESULTS:
+
+* What's in a move?
+
+#+BEGIN_EXAMPLE
+1. e4 e5
+#+END_EXAMPLE
+
+#+ATTR_REVEAL: :frag (roll-in roll-in roll-in roll-in roll-in)
+- Move number (`1.`)
+- Two half-moves (`e4 e4`)
+- Pawn or piece half-move (`d5`, `Ng5`)
+- Pawn or piece captures (`exd5`).
+- There's more, but we'll skip them.
+
+* Move number
+
+#+ATTR_REVEAL: :frag roll-in
+#+BEGIN_SRC python :session :exports code
+move_number = Word(nums) + Literal(".")
+#+END_SRC
+
+#+RESULTS:
+
+#+ATTR_REVEAL: :frag (roll-in roll-in)
+- `Word` - matches words made of allowed character sets.
+- `Literal` - exactly matches a specified string.
+
+* Coordinates
+
+#+ATTR_REVEAL: :frag roll-in
+#+BEGIN_SRC python :session :exports code
+file_coord = oneOf("a b c d e f g h")
+rank_coord = oneOf("1 2 3 4 5 6 7 8")
+#+END_SRC
+
+#+RESULTS:
+
+#+ATTR_REVEAL: :frag (roll-in roll-in)
+- `oneOf` - helper to quickly define a set of alternative `Literal`s
+- returns first fitting match.
+
+
+** Pawn half-moves
+
+Pawn half-move is just a file and a rank.
+
+#+BEGIN_SRC python :session :exports code
+pawn_move = file_coord + rank_coord
+#+END_SRC
+
+#+RESULTS:
+
+
+* Pieces
+
+Any idea how?
+
+#+ATTR_REVEAL: :frag roll-in
+#+BEGIN_SRC python :session :exports code
+piece = oneOf("K Q N B R")
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_NOTES
+Introduce the notation and if time permits let them think about it for
+couple of seconds.
+#+END_NOTES
+
+
+** Piece half-moves
+
+A piece half-move has the piece prefix and coordinates.
+
+#+BEGIN_SRC python :session :exports code
+piece_move = piece + file_coord + rank_coord
+#+END_SRC
+
+#+RESULTS:
+
+
+* Capturing
+
+Capture involves having literal `x` in between coordinates.
+
+#+BEGIN_SRC python :session :exports code
+capture = Literal("x")
+#+END_SRC
+
+#+RESULTS:
+
+
+** Pawn captures
+
+Start from a file (letter), capture and end with coordinates.
+
+#+BEGIN_SRC python :session :exports code
+pawn_capture = file_coord + capture + file_coord + rank_coord
+#+END_SRC
+
+#+RESULTS:
+
+
+** Piece captures
+
+Same as pawn, but have a piece prefix instead of file.
+
+#+BEGIN_SRC python :session :exports code
+piece_capture = piece + capture + file_coord + rank_coord
+#+END_SRC
+
+#+RESULTS:
+
+
+* Half move
+
+A half move is either a:
+#+ATTR_REVEAL: :frag (roll-in roll-in roll-in roll-in)
+- pawn move, or
+- piece move, or
+- pawn capture, or
+- piece capture.
+
+#+ATTR_REVEAL: :frag roll-in
+#+BEGIN_SRC python :session :exports code
+half_move = Combine(pawn_move | pawn_capture | piece_move | piece_capture)
+#+END_SRC
+
+#+RESULTS:
+
+
+* Move
+
+A move is a:
+#+ATTR_REVEAL: :frag (roll-in roll-in roll-in)
+- move number (don't forget!)
+- half-move
+- half-move
+
+#+ATTR_REVEAL: :frag roll-in
+#+BEGIN_SRC python :session :exports code
+move = Group(Suppress(move_number) + half_move + half_move)
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_NOTES
+`Group` - converter to return matched tokens as a list.
+#+END_NOTES
+
+
+* Putting it all together
+
+We started with a PGN, so we finish with:
+
+#+BEGIN_SRC python :session :exports both :results pp
+pgnGrammar = ZeroOrMore(move)
+
+pgn = pgnGrammar.parseString("""
+1. e4 e5
+2. Nf3 Nc6
+3. Bc4 Nf6
+4. Ng5 d5
+5. exd5 Nxd5
+6. Nxf7 Kxf7""")
+
+[list(m) for m in pgn]
+#+END_SRC
+
+#+RESULTS:
+[['e4', 'e5'], ['Nf3', 'Nc6'], ['Bc4', 'Nf6'], ['Ng5', 'd5'], ['exd5', 'Nxd5'], ['Nxf7', 'Kxf7']]
+
+
+* What is it useful for?
+
+- Writing parsers for semi-structured data
+- Writing quick and dirty DSLs (think 'Cucumber')
+
+
+* Slightly more complicated example
+
+- MySQL syntax parser*
+- http://bit.ly/mysqlparse
+- Star, share, contribute.
+
+* Thank you
